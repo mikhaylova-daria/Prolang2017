@@ -1,4 +1,3 @@
-
 var header=[];
 for (var i = 65; i <= 90; i++) {
     header.push(String.fromCharCode(i));
@@ -20,8 +19,8 @@ var new_table = function() {
         }
         etable += '</thead>'
         etable +="<tbody align='center'>";
-        for(var k=0; k<N; k++) {
-            etable += "<tr><td width='3.5%'>"+(k+1)+"</td><td width='3.5%'>".repeat(header.length)+ "</td></tr>";
+        for(var i=0; i<N; i++) {
+            etable += "<tr><td width='3.5%'>"+(i+1)+"</td><td width='3.5%'>".repeat(header.length)+ "</td></tr>";
         }
         etable += "</tbody>";
         etable += "</table></div>";
@@ -53,7 +52,7 @@ $(function()	{
         if(col === 0)	{return false;}
         ind = header[col-1]+row;
         //по клику в инпуте показываем формулу, в ячейке без фокуса -- значение
-        var val = (expr[ind]!==undefined?expr[ind]:$(this).val());
+        var val = (expr[ind]!=undefined?expr[ind]:$(this).val());
         var code = '<input type="text" id="edit" value="'+val+'" />';
         $(this).empty().append(code);
         $('#edit').focus();
@@ -63,7 +62,7 @@ $(function()	{
             if  (expr[ind][0]==='=') {
                 var a = expr[ind].substr(1, expr[ind].length);
                 try {
-                    a = parse(a);
+                    a = parse(a, ind);
                 } catch (e) {
                     a = 'ERROR';
                 }
@@ -139,7 +138,7 @@ var ops = {
 // input for parsing: var r = { string: '123.45+33*8', offset: 0 };
 // r is passed by reference: any change in r.offset is returned to the caller
 // functions return the parsed/calculated value
-function parseVal(r) {
+function parseVal(r,  ind) {
     var startOffset = r.offset;
     var value;
     var m;
@@ -152,18 +151,18 @@ function parseVal(r) {
     }
     if(r.offset > startOffset) {
         return filterFloat(r.string.substr(startOffset, r.offset-startOffset));
-    } else if(r.string.substr(r.offset, 1) == "+"
-              && (r.offset==0 || r.string.substr(r.offset-1, 1) == "(")) { //унарный плюс
+    } else if(r.string.substr(r.offset, 1) === "+"
+              && (r.offset===0 || r.string.substr(r.offset-1, 1) === "(")) { //унарный плюс
         r.offset++;
-        return parseVal(r);
-    } else if(r.string.substr(r.offset, 1) == "-"
-              && (r.offset==0 ||r.string.substr(r.offset-1, 1) == "(")) { //унарный минус
+        return parseVal(r, ind);
+    } else if(r.string.substr(r.offset, 1) === "-"
+              && (r.offset===0 ||r.string.substr(r.offset-1, 1) === "(")) { //унарный минус
         r.offset++;
-        return negate(parseVal(r));
-    } else if(r.string.substr(r.offset, 1) == "(") {
+        return negate(parseVal(r, ind));
+    } else if(r.string.substr(r.offset, 1) === "(") {
         r.offset++;   // считали "("
-        value = parseExpr(r);
-        if(r.string.substr(r.offset, 1) == ")") {
+        value = parseExpr(r, ind);
+        if(r.string.substr(r.offset, 1) === ")") {
             r.offset++; //считали ")"
             return value; //вернули значение между скобками
         }
@@ -173,22 +172,32 @@ function parseVal(r) {
         var name = m[0];
         r.offset += name.length;
         if (name in expr) {
-            if (expr[name] == null) {
-                return 0;
-            }
-            if  (expr[name][0]==='=') {
-                var a = expr[name].substr(1, expr[name].length);
-                return parse(a);
+            if (name === ind) {
+                r.error='Ошибка: циклическая зависимость ячеек: ' + ind;
+                throw 'CicleRefer';
             } else {
-                if (expr[name]!=null) {
-                    if (!isNaN(filterFloat(expr[name]))) {
-                       return filterFloat(expr[name]);
-                    } else {
-                        r.error = "Ошибка: нечисловое выражение в ячейке " + name;
-                        throw 'unknownVar';
-                    }
-                } else {
+                if (expr[name] === null) {
                     return 0;
+                }
+                if  (expr[name][0]==='=') {
+                    var a = expr[name].substr(1, expr[name].length);
+                    try {
+                        a = parse(a, ind);
+                    } catch (e) {
+                        throw e;
+                    }
+                    return a;
+                } else {
+                    if (expr[name]!=null) {
+                        if (!isNaN(filterFloat(expr[name]))) {
+                           return filterFloat(expr[name]);
+                        } else {
+                            r.error = "Ошибка: нечисловое выражение в ячейке " + name;
+                            throw 'unknownVar';
+                        }
+                    } else {
+                        return 0;
+                    }
                 }
             }
         }
@@ -217,10 +226,10 @@ function parseOp(r) {
     return null;
 }
 
-function parseExpr(r) {
+function parseExpr(r,  ind) {
     var stack = [{precedence: 0, assoc: 'L'}];
     var op;
-    var value = parseVal(r); //вычисляем самое первое выражение слева
+    var value = parseVal(r,  ind); //вычисляем самое первое выражение слева
     for(;;){
         try {
             op = parseOp(r) || {precedence: 0, assoc: 'L'};
@@ -229,7 +238,7 @@ function parseExpr(r) {
         }
 
         while(op.precedence < stack[stack.length-1].precedence ||
-              (op.precedence == stack[stack.length-1].precedence && op.assoc == 'L')) {
+              (op.precedence === stack[stack.length-1].precedence && op.assoc === 'L')) {
             // вычисляем выражение слева
             var tos = stack.pop();
             if(!tos.exec) return value;
@@ -237,23 +246,25 @@ function parseExpr(r) {
         }
         //shift: складываем в стек операцию
         stack.push({op: op.op, precedence: op.precedence, assoc: op.assoc, exec: op.exec, value: value});
-        value = parseVal(r);  // вычисляем выражение справа
+        value = parseVal(r,  ind);  // вычисляем выражение справа
     }
 }
 
-function parse (string) {
+function parse (string, ind) {
     var r = {string: string, offset: 0};
     try {
-        var value = parseExpr(r);
+        var value = parseExpr(r,  ind);
         if(r.offset < r.string.length){
           r.error = 'Ошибка в позиции ' + r.offset;
-            throw 'trailingJunk';
+          throw 'trailingJunk';
         }
         return value;
     } catch(e) {
+        if (e==='CicleRefer') {
+            r.error = 'Ошибка: циклическая зависимость';
+        }
         alert(r.error + ' (' + e + '):\n' + r.string.substr(0, r.offset) + r.string.substr(r.offset));
         throw e;
     }
     return;
 }
-
