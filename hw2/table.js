@@ -20,8 +20,8 @@ var new_table = function() {
         }
         etable += '</thead>'
         etable +="<tbody align='center'>";
-        for(var i=0; i<N; i++) {
-            etable += "<tr><td width='3.5%'>"+(i+1)+"</td><td width='3.5%'>".repeat(header.length)+ "</td></tr>";
+        for(var k=0; k<N; k++) {
+            etable += "<tr><td width='3.5%'>"+(k+1)+"</td><td width='3.5%'>".repeat(header.length)+ "</td></tr>";
         }
         etable += "</tbody>";
         etable += "</table></div>";
@@ -29,7 +29,7 @@ var new_table = function() {
 }
 
 var init = function() {
-    if (localStorage.length == 0) {
+    if (localStorage.length === 0) {
         etable = new_table();
     } else {
         applySetting();
@@ -53,7 +53,7 @@ $(function()	{
         if(col === 0)	{return false;}
         ind = header[col-1]+row;
         //по клику в инпуте показываем формулу, в ячейке без фокуса -- значение
-        var val = (expr[ind]!=undefined?expr[ind]:$(this).val());
+        var val = (expr[ind]!==undefined?expr[ind]:$(this).val());
         var code = '<input type="text" id="edit" value="'+val+'" />';
         $(this).empty().append(code);
         $('#edit').focus();
