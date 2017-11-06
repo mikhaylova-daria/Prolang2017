@@ -46,14 +46,13 @@ $(function()	{
         //если это инпут - ничего не делаем
         if(elm_name ==='input')	{return false;}
         if(col === 0)	{return false;}
-        //ind = row + header[col-1];
-        var val = $(this).html();
+        ind = row + header[col-1];
+        var val = (expr[ind]!=undefined?expr[ind]:$(this).val());
         var code = '<input type="text" id="edit" value="'+val+'" />';
         $(this).empty().append(code);
         $('#edit').focus();
         $('#edit').blur(function()	{
             expr[ind] = $(this).val();
-
             //формула обязана начинаться с =, все остальное -- просто текст
             if  (expr[ind][0]==='=') {
                 var a = expr[ind].substr(1, expr[ind].length);
@@ -68,16 +67,14 @@ $(function()	{
                 $('#edit').blur();	//снимаем фокус с поля ввода
             }
         });
+    });
+    $("#save").click(function () {
+       setSettings();
+    });
 
-        $("#save").click(function () {
-           setSettings();
-        });
-
-        $("#clear").click(function () {
-           clearSettings();
-           location.reload();
-        });
-
+    $("#clear").click(function () {
+       clearSettings();
+       location.reload();
     });
 });
 
