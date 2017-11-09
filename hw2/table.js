@@ -14,6 +14,29 @@ var ops = {
    '/'  : {op: '/', precedence: 20, assoc: 'L', exec: function(l,r) { return l/r; } },
 };
 
+var sin = function (value, ind) {
+            if(/^(\-|\+)?([0-9]+(\.[0-9]+)?|Infinity)$/
+              .test(value))
+              return Math.sin(Number(value));
+            throw "Ошибка: функция синус требует числовой аргумент: " + ind;
+        }
+
+var abs = function (value, ind) {
+            if(/^(\-|\+)?([0-9]+(\.[0-9]+)?|Infinity)$/
+              .test(value))
+              return Math.abs(Number(value));
+            throw "Ошибка: функция синус требует числовой аргумент: " + ind;
+        }
+
+var len = function (value, ind) {
+           return value.toString().length;
+        }
+
+var foo = {
+    'SIN' : sin,
+    'ABS' : abs,
+    'LEN' : len
+}
 
 // input for parsing: var r = { string: '123.45+33*8', offset: 0 };
 // r is passed by reference: any change in r.offset is returned to the caller
@@ -46,8 +69,16 @@ function parseVal(r,  ind) {
             r.offset++; //считали ")"
             return value; //вернули значение между скобками
         }
-        r.error = "Ошибка: пропущена ')'";
-        throw 'parseError';
+        throw "Ошибка: пропущена ')'";
+    } else if (r.string.substr(r.offset, 4) in {'SIN(':0, 'ABS(':1, 'LEN(':2})  {
+        var f = r.string.substr(r.offset, 3);
+        r.offset+=4;
+        value = parseExpr(r, ind);
+        if(r.string.substr(r.offset, 1) === ")") {
+            r.offset++; //считали ")"
+            return foo[f](value, ind); //вернули функцию, примененную к значение между скобками
+        }
+        throw "Ошибка: пропущена ')'";
     } else if(m = /^[a-z][a-z0-9_]*/i.exec(r.string.substr(r.offset))) {  // названия ячеек
         var name = m[0];
         r.offset += name.length;
@@ -71,7 +102,8 @@ function parseVal(r,  ind) {
                         if (!isNaN(filterFloat(expr[name]))) {
                            return filterFloat(expr[name]);
                         } else {
-                            throw "Ошибка: нечисловое выражение в ячейке " + name;
+                            return expr[name];
+                            //throw "Ошибка: нечисловое выражение в ячейке " + name;
                         }
                     } else {
                         return 0;
@@ -127,6 +159,8 @@ function parseExpr(r,  ind) {
 }
 
 function parse (string, ind) {
+     //убиваем пробелы
+    string = string.replace(/\s/g, "");
     if (string[0]==='=') {
         string=string.substr(1, string.length);
     }
