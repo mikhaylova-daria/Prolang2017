@@ -53,8 +53,7 @@ function parseVal(r,  ind) {
         r.offset += name.length;
         if (name in expr) {
             if (name === ind) {
-                r.error='Ошибка: циклическая зависимость ячеек: ' + ind;
-                throw 'CicleRefer';
+                throw 'Ошибка: циклическая зависимость ячеек: ' + ind;
             } else {
                 if (expr[name] === '') {
                     return 0;
@@ -64,7 +63,6 @@ function parseVal(r,  ind) {
                     try {
                         a = parse(a, ind);
                     } catch (e) {
-                        alert('INSERT ERROR');
                         throw e;
                     }
                     return a;
@@ -73,8 +71,7 @@ function parseVal(r,  ind) {
                         if (!isNaN(filterFloat(expr[name]))) {
                            return filterFloat(expr[name]);
                         } else {
-                            r.error = "Ошибка: нечисловое выражение в ячейке " + name;
-                            throw 'unknownVar';
+                            throw "Ошибка: нечисловое выражение в ячейке " + name;
                         }
                     } else {
                         return 0;
@@ -83,16 +80,14 @@ function parseVal(r,  ind) {
             }
         }
         else {
-            r.error = "Ошибка: неизвестная переменная '" + name + "'";
-            throw 'unknownVar';
+            throw "Ошибка: неизвестная переменная '" + name + "'";
         }
     } else {
         if(r.string.length == r.offset) {
             r.error = 'Оошибка: неожиданный конец строки';
             throw 'valueMissing';
         } else  {
-            r.error = "Ошибка: невалидное выражение";
-            throw 'valueNotParsed';
+            throw "Ошибка: невалидное выражение";
         }
     }
 }
@@ -141,14 +136,10 @@ function parse (string, ind) {
         var value = parseExpr(r,  ind);
         if(r.offset < r.string.length){
           r.error = 'Ошибка в позиции ' + r.offset;
-          throw 'trailingJunk';
+          throw r.error;
         }
         return value;
     } catch(e) {
-        if (e==='CicleRefer') {
-            r.error = 'Ошибка: циклическая зависимость';
-        }
-        alert(r.error + ' (' + e + '):\n' + r.string.substr(0, r.offset) + r.string.substr(r.offset));
         throw e;
     }
     return;
@@ -230,7 +221,11 @@ var refresh_table = function(status) {
                     try {
                         new_v = parse(expr[String.fromCharCode(c)+row], String.fromCharCode(c)+row);
                     } catch (e) {
-                        new_v = 'ERROR';
+                        if (expr[String.fromCharCode(c)+row][0]==='=') {
+                            new_v = 'ERROR';
+                        } else {
+                            new_v = expr[String.fromCharCode(c)+row];
+                        }
                     }
                     if (status ==='update') {
                         do_cell_modification(row, c-64, new_v);
@@ -282,6 +277,7 @@ $(function()	{
                     a = parse(a, ind);
                 } catch (e) {
                     a = 'ERROR';
+                    alert(e)
                 }
                 $(this).parent().empty().html(a);
 
@@ -306,6 +302,3 @@ $(function()	{
        location.reload();
     });
 });
-
-
-
