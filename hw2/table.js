@@ -1,124 +1,3 @@
-var header=[];
-for (var i = 65; i <= 90; i++) {
-    header.push(String.fromCharCode(i));
-}
-var N=20;
-var expr = {};
-for (var i = 65; i <= 90; i++) {
-    for (var j=1; j <= N; j++) {
-        expr[String.fromCharCode(i)+j] = null;
-    }
-}
-var etable;
-var new_table = function() {
-        etable = "<div class='Table1'> <table border='1' cellpadding='0' cellspacing='0' width='100%'>";
-        etable += "<th></th>"
-
-        for(var i=0; i<header.length; i++) {
-            etable += "<th>"+header[i]+"</th>";
-        }
-        etable += '</thead>'
-        etable +="<tbody align='center'>";
-        for(var i=0; i<N; i++) {
-            etable += "<tr><td width='3.5%'>"+(i+1)+"</td><td width='3.5%'>".repeat(header.length)+ "</td></tr>";
-        }
-        etable += "</tbody>";
-        etable += "</table></div>";
-        return etable;
-}
-
-var init = function() {
-    if (localStorage.length === 0) {
-        etable = new_table();
-    } else {
-        applySetting();
-    }
-    document.getElementById("etable").innerHTML = etable;
-}
-
-init();
-var ind;
-
-$(function()	{
-    $("table tr td").click(function(e)	{
-        //ловим элемент, по которому кликнули
-        var t = e.target || e.srcElement;
-        //получаем название тега
-        var elm_name = t.tagName.toLowerCase();
-        var row = this.parentNode.rowIndex;
-        var col = this.cellIndex;
-        //если это инпут - ничего не делаем
-        if(elm_name ==='input')	{return false;}
-        if(col === 0)	{return false;}
-        ind = header[col-1]+row;
-        //по клику в инпуте показываем формулу, в ячейке без фокуса -- значение
-        var val = (expr[ind]!=undefined?expr[ind]:$(this).val());
-        var code = '<input type="text" id="edit" value="'+val+'" />';
-        $(this).empty().append(code);
-        $('#edit').focus();
-        $('#edit').blur(function()	{
-            expr[ind] = $(this).val();
-            //формула обязана начинаться с =, все остальное -- просто текст
-            if  (expr[ind][0]==='=') {
-                var a = expr[ind].substr(1, expr[ind].length);
-                try {
-                    a = parse(a, ind);
-                } catch (e) {
-                    a = 'ERROR';
-                }
-                $(this).parent().empty().html(a);
-
-            } else {
-                $(this).parent().empty().html(expr[ind]);
-            }
-        });
-        $(window).keydown(function(event){
-            //ловим событие нажатия клавиши
-            if(event.keyCode === 13) {	//если это Enter
-                $('#edit').blur();	//снимаем фокус с поля ввода
-            }
-        });
-    });
-    $("#save").click(function () {
-       setSettings();
-    });
-
-    $("#clear").click(function () {
-       clearSettings();
-       location.reload();
-    });
-});
-
-
-function applySetting() {
-    if (localStorage.length != 0) {
-        etable = JSON.parse(localStorage.getItem('etable'));
-        expr = JSON.parse(localStorage.getItem('expressions'));
-    }
-}
-
-function setSettings() {
-    if ('localStorage' in window && window['localStorage'] != null) {
-        try {
-                localStorage.setItem('etable', JSON.stringify($("#etable").html()));
-                localStorage.setItem('expressions', JSON.stringify(expr));
-            } catch (e) {
-                if (e == QUOTA_EXCEEDED_ERR) {
-                    alert('Переполнение хранилища!');
-                }
-            }
-    } else {
-        alert('Данные не сохранятся, ваш браузер не поддерживает Local storage');
-    }
-}
-
-function clearSettings() {
-        localStorage.removeItem('etable');
-        localStorage.removeItem('expressions');
-}
-
-
-
 var filterFloat = function (value) {
     if(/^(\-|\+)?([0-9]+(\.[0-9]+)?|Infinity)$/
       .test(value))
@@ -126,6 +5,7 @@ var filterFloat = function (value) {
   return NaN;
 }
 
+//Калькулят
 // Набор допустимых операций
 var ops = {
    '+'  : {op: '+', precedence: 10, assoc: 'L', exec: function(l,r) { return l+r; } },
@@ -176,14 +56,15 @@ function parseVal(r,  ind) {
                 r.error='Ошибка: циклическая зависимость ячеек: ' + ind;
                 throw 'CicleRefer';
             } else {
-                if (expr[name] === null) {
+                if (expr[name] === '') {
                     return 0;
                 }
                 if  (expr[name][0]==='=') {
-                    var a = expr[name].substr(1, expr[name].length);
+                    var a = expr[name];
                     try {
                         a = parse(a, ind);
                     } catch (e) {
+                        alert('INSERT ERROR');
                         throw e;
                     }
                     return a;
@@ -251,6 +132,10 @@ function parseExpr(r,  ind) {
 }
 
 function parse (string, ind) {
+    if (string[0]==='=') {
+        string=string.substr(1, string.length);
+    }
+
     var r = {string: string, offset: 0};
     try {
         var value = parseExpr(r,  ind);
@@ -268,3 +153,159 @@ function parse (string, ind) {
     }
     return;
 }
+
+//Заполнение таблицы
+
+var table = document.getElementById("etable");
+var etable;
+var ind;
+
+var header=[];
+for (var i = 65; i <= 90; i++) {
+    header.push(String.fromCharCode(i));
+}
+var N=20;
+var expr = {};
+for (var i = 65; i <= 90; i++) {
+    for (var j=1; j <= N; j++) {
+        expr[String.fromCharCode(i)+j] = '';
+    }
+}
+
+function applySetting() {
+    if (localStorage.length !== 0) {
+        expr = JSON.parse(localStorage.getItem('expressions'));
+    }
+}
+
+function setSettings() {
+    if ('localStorage' in window && window['localStorage'] !== null) {
+        try {
+                localStorage.setItem('expressions', JSON.stringify(expr));
+            } catch (e) {
+                if (e == QUOTA_EXCEEDED_ERR) {
+                    alert('Переполнение хранилища!');
+                }
+            }
+    } else {
+        alert('Данные не сохранятся, ваш браузер не поддерживает Local storage');
+    }
+}
+
+function clearSettings() {
+        localStorage.removeItem('expressions');
+}
+
+function do_cell_modification(row, column, new_value){
+    var row_n = parseFloat(row);
+    var col_n = parseFloat(column);
+    var table_h = 20;
+    if ((row_n >= 0 ) && (col_n >= 0)) {
+        if (row_n > table_h) {
+            alert("Нельзя модифицировать ячейки за пределами таблицы" + col_n +' '+row_n);
+            return;
+        }
+        if (col_n  >= table.rows[row_n ].cells.length) {
+            alert("Нельзя модифицировать ячейки за пределами таблицы" + col_n +' '+row_n);
+            return;
+        }
+        table.rows[row_n].cells[col_n].innerHTML = new_value;
+    }
+}
+
+var refresh_table = function(status) {
+        etable = "<table border='1' cellpadding='0' cellspacing='0' width='100%'b id='etable'>";
+        etable += "<th></th>"
+
+        for(var i=0; i<header.length; i++) {
+            etable += "<th>"+header[i]+"</th>";
+        }
+        etable += '</thead>'
+        etable +="<tbody align='center'>";
+        for(var row=1; row<=N; row++) {
+            etable += "<tr><td width='3.5%'>"+row;
+            for (var c = 65; c <= 90; c++) {
+                var new_v='';
+                if (expr[String.fromCharCode(c)+row]!=='') {
+                    try {
+                        new_v = parse(expr[String.fromCharCode(c)+row], String.fromCharCode(c)+row);
+                    } catch (e) {
+                        new_v = 'ERROR';
+                    }
+                    if (status ==='update') {
+                        do_cell_modification(row, c-64, new_v);
+                    }
+                 }
+                etable += "</td><td width='3.5%'>"+new_v;
+            }
+            etable +="</td></tr>";
+        }
+        etable += "</tbody>";
+        etable += "</table></div>";
+        return etable;
+}
+
+
+var init = function() {
+    if (localStorage.length != 0) {
+        applySetting();
+    }
+    etable = refresh_table('new')
+    table.innerHTML = etable;
+}
+
+init();
+
+$(function()	{
+    $("table tr td").click(function(e)	{
+        //ловим элемент, по которому кликнули
+        var t = e.target || e.srcElement;
+        //получаем название тега
+        var elm_name = t.tagName.toLowerCase();
+        var row = this.parentNode.rowIndex;
+        var col = this.cellIndex;
+        //если это инпут - ничего не делаем
+        if(elm_name ==='input')	{return false;}
+        if(col === 0)	{return false;}
+        ind = header[col-1]+row;
+        //по клику в инпуте показываем формулу, в ячейке без фокуса -- значение
+        var val = expr[ind];
+        var code = '<input type="text" id="edit" value="'+val+'" />';
+        $(this).empty().append(code);
+        $('#edit').focus();
+        $('#edit').blur(function()	{
+            expr[ind] = $(this).val();
+            //формула обязана начинаться с =, все остальное -- просто текст
+            if  (expr[ind][0]==='=') {
+                var a = expr[ind].substr(1, expr[ind].length);
+                try {
+                    a = parse(a, ind);
+                } catch (e) {
+                    a = 'ERROR';
+                }
+                $(this).parent().empty().html(a);
+
+            } else {
+                $(this).parent().empty().html(expr[ind]);
+            }
+            refresh_table('update');
+        });
+        $(window).keydown(function(event){
+            //ловим событие нажатия клавиши
+            if(event.keyCode === 13) {	//если это Enter
+                $('#edit').blur();	//снимаем фокус с поля ввода
+            }
+        });
+    });
+    $("#save").click(function () {
+       setSettings();
+    });
+
+    $("#clear").click(function () {
+       clearSettings();
+       location.reload();
+    });
+});
+
+
+
