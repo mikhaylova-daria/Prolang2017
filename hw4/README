@@ -11,4 +11,4 @@
 encryptor:decoder("./image_with_text/Text_lena.bmp").
 
 %зашифровка текста
-encryptor:encoder(["./image/lena.bmp", "Text"]). 
+encryptor:encoder(["./image/dasha.bmp", "./Text/Text", "./image_with_text/dasha.bmp"]). 

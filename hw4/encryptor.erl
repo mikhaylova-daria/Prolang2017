@@ -12,10 +12,6 @@
 -import(math, [pow/2]).
 
 
-rev (<<>>, Acc) -> Acc;
-rev (<<H:1/binary, Rest/binary>>, Acc) ->
-    rev(Rest, <<H/binary, Acc/binary>>).
-
 recover_number_from_bit_mask([])->
     0;
 recover_number_from_bit_mask([F | Other]) ->
@@ -28,25 +24,44 @@ clear_bits(N, BitsToClear) ->
 
 round_nbytes(ListOffset, N) ->
     case length(ListOffset) < N of
-        true -> round_nbytes([<<0>>]++ListOffset, 8);
+        true -> round_nbytes([<<0>>]++ListOffset, 4);
         false -> ListOffset
     end.
 
+cut_bad_byte(Text) ->
+    LastByte = binary_part(Text, byte_size(Text)-1, 1),
+    LastBits = hd(tl(bitmask:get_subarray_from_bitarray(LastByte))),
+    case LastBits of
+        [0 | _] -> Text;
+        [1, 1| _] -> binary_part(Text, 0, byte_size(Text)-1);
+        [1, 0 | _] -> cut_bad_byte(binary_part(Text, 0, byte_size(Text)-1))
+    end.
 
-insert(Text, Image) ->
+cut_text(Text, Image) ->
+    case 3*bit_size(Text) < bit_size(Image#image.contents) of
+        false -> 
+            MaxText = binary_part(Text, 0, round(byte_size(Image#image.contents)/3)),
+            cut_bad_byte(MaxText);
+        true -> Text
+    end.
+
+
+insert(InputText, Image) ->
+    Text = cut_text(InputText, Image),
     TextBitsList = hd(tl(get_subarray_from_bitarray(Text))),
-    <<"BM", _:64, Hdr/binary>> = Image#image.headers, 
+    <<"BM", Size:32/bits, _:32, Hdr/binary>> = Image#image.headers, 
     Offset = binary:encode_unsigned(round(length(TextBitsList)/8)*3),
     L = length(binary_to_list(Offset)),
-    case L < 8 of
+    case L < 4 of
         true ->
-            Offset64= round_nbytes(binary_to_list(Offset), 8),
-            NewHeader = list_to_binary([<<"BM">>, Offset64, Hdr]), 
+            Offset32= round_nbytes(binary_to_list(Offset), 4),
+            NewHeader = list_to_binary([<<"BM">>, Size, Offset32, Hdr]), 
             ImageByteList = binary_to_list(Image#image.contents), 
-            list_to_binary([NewHeader, insert_bits(TextBitsList, ImageByteList, [])]);
+            list_to_binary([NewHeader , insert_bits(TextBitsList, ImageByteList, [])]);
         false ->
             unreal_long_text
     end.
+
 
 insert_bits([], Image, NewImageByteList) ->
     NewImageByteList++Image;
@@ -63,7 +78,7 @@ insert_bits([B1, B2, B3, B4, B5, B6, B7, B8 | TextTail], [B, G, R | ImageTail], 
 
 
 eject(Image) ->
-    <<"BM", TextByteLength:64, Off:32/little, Hdr/binary>> = Image#image.headers, 
+    <<"BM", _:32, TextByteLength:32, _Off:32/little, _Hdr/binary>> = Image#image.headers, 
     ImageWithText=binary_to_list(binary_part(Image#image.contents, 0, TextByteLength)),
     eject_bits(ImageWithText, []).
 
@@ -82,10 +97,12 @@ eject_bits([B, G, R | ImageTail], Text) ->
 
 
 encoder([FileNameImage, FileNameText]) ->
+    encoder([FileNameImage, FileNameText, "image_with_text.bmp"]);
+encoder([FileNameImage, FileNameText, NewFileName]) -> 
     {ok, Image} = bmp_image:load(bmp, FileNameImage),
     {ok, Text} = file:read_file(FileNameText),
     NewImage = insert(Text, Image),
-    file:write_file("image_with_text.bmp",  NewImage).
+    file:write_file(NewFileName,  NewImage).
 
 decoder(FileName) ->
     {ok, Image} = bmp_image:load(bmp, FileName),
